@@ -29,13 +29,18 @@ server.views({
 		isCached: false
 });
 
-server.route( [
-	{
-		path: "/", 					 method: "GET",   config: controller.homeView
-	},
-	{
-		path: "/searchURL",  method: "GET", 	config: controller.searchURL
-	}
-]);
+server.route( 
+	[
+		{
+			path: "/", 			 method: "GET",   config: controller.homeView
+		},
+		{
+			path: "/public/{file*}",	 method: "GET",   config: controller.serveFile
+		},
+		{
+			path: "/searchurl",  method: "GET",   config: controller.searchURL
+		}
+	]
+);
 
 module.exports = server;
