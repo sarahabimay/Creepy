@@ -1,0 +1,28 @@
+{
+  "name": "site-map-web-crawler",
+  "version": "1.0.0",
+  "description": "Web crawler for displaying a site map of static assets",
+  "main": "app.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "lab -v -c",
+    "start": "node app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sarahabimay/Creepy.git"
+  },
+  "author": "Sarah Johnston",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sarahabimay/Creepy/issues"
+  },
+  "homepage": "https://github.com/sarahabimay/Creepy#readme",
+  "dependencies": {
+    "cheerio": "^0.19.0",
+    "hapi": "^8.8.0",
+    "jade": "^1.11.0"
+  }
+}
