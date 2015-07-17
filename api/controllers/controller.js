@@ -1,78 +1,182 @@
 var path 	 = require("path");
 var requestio  = require('request');
+// var jQuery = require ('jquery');
 var cheerio  = require('cheerio');
 var validator = require('validator');
+
+var globalCacheOfURLs = {};
+var globalCache = [];
  
-function getAllHRefs( $, rootHost, listOfURLs ) {
-	var fullpath, isValid, href, atags;
+function getAllHRefs( $, rootURL, currentURL ) {
+	var debug = require( 'debug' )('app:getAllHRefs');
+	var fullpath, isValid, href;
 	var uniqueURLs = {};
-	atags = $('a');
+	var atags = $('a');
   $('a').each( function(index, a ) {
   	href = $(a).attr( "href" );
   	if( href !== undefined ) {
   		
     	console.log( "HREF: " + href );
+
     	if( href.match( '^http') ){
-    		if( href in listOfURLs ) {
-    			console.log( 'Already saved that URL. ' );
+    		if( href in globalCacheOfURLs ) {
+    			debug( 'Already saved that URL. ' );
     		}
     		else{
-    			console.log( 'Adding to list of URLs to be scraped');
-    			listOfURLs[href] = true;
-    			uniqueURLs [ href ] = true;
+    			debug( 'Adding to list of URLs to be scraped');
+    			globalCacheOfURLs[ href ] = false;
+    			globalCache.push( href );
+    			uniqueURLs [ href ] = false;
     		}
     	}
-    	else{
-    		// need to add the root hostname to the href
-    		fullpath = rootHost + href;
-    		console.log( "Fullpath: " + fullpath );
+    	else if( href.match('^#') ){
+    		fullpath = currentURL + href;
+    		console.log( "Full path", fullpath );
     		if( validator.isURL(fullpath) ) {
     			console.log( "Valid URL so stick it in the list if unique");
-  				if( href in listOfURLs ) {
-	    			console.log( 'Already saved that URL: ' );
+  				if( href in globalCacheOfURLs ) {
+	    			debug( 'Already saved that URL: ' );
 	    		}
 	    		else{
 	    			console.log( 'Adding to list of URLs to be scraped');
-	    			listOfURLs[ fullpath ] = true;
-	    			uniqueURLs[ fullpath ] = true;
+	    			globalCacheOfURLs[ fullpath ] = false;
+	    			globalCache.push( fullpath );
+	    			uniqueURLs[ fullpath ] = false;
 	    		}
     		}
     		else {
     			console.log( 'Invalid URL so skipping');
     		}
     	}
-  	// console.log( $(a).attr( "href" ) );
+    	else	{
+    		// need to add the root hostname to the href
+    		fullpath = rootURL + href;
+    		debug( "Fullpath: " , fullpath );
+    		if( validator.isURL(fullpath) ) {
+    			debug( "Valid URL so stick it in the list if unique");
+  				if( href in globalCacheOfURLs ) {
+	    			debug( 'Already saved that URL: ' );
+	    		}
+	    		else{
+	    			debug( 'Adding to list of URLs to be scraped');
+	    			globalCacheOfURLs[ fullpath ] = false;
+	    			globalCache.push( fullpath );
+	    			uniqueURLs[ fullpath ] = false;
+	    		}
+    		}
+    		else {
+    			console.log( 'Invalid URL so skipping');
+    		}
+    	}
   	}
   });
 	return uniqueURLs;
 }
 
-function crawlAndQueue( rootHost, currentURLs, allURLs, css, scripts, images ) {
-	// currentURLs should only contain the urls found in this recursion so as not to keep repeating searches
+function combineObjects ( newURLs ) {
+	for (var attrname in newURLs) { 
+		globalCacheOfURLs[attrname] = newURLs[attrname]; 
+	}
+	return globalCacheOfURLs;
+}
+
+function isEmptyObject(object) { 
+	for(var i in object) { 
+		return true; 
+	} 
+	return false; 
+}
+
+var globalCacheOfScrapedURLs = {};
+
+function scrapeURL( rootHost, currentURLs, css, scripts, images, callback ) {
 	var newURLs = {};
-	for (var url in currentURLs ) {
+	var urlCount = 0;
+	// for (var url in currentURLs ) {
+	for( i = 0 ; i< globalCache.length; i++ ) {
+		console.log( "Global Cache Length: ", globalCache.length );
+		url = globalCache[i];
+		(function( url ){
+			// if globalCacheOfURLs[ url ] is false then it needs to be scraped still
+			if( globalCacheOfURLs[ url ] !== undefined && !globalCacheOfURLs[ url ]) {
+				console.log( "SEARCHING URL: ", url );
+				requestio( url, function (error, response, body) {
+				  if (!error && response.statusCode == 200) {
 
-		requestio(url, function (error, response, body) {
-		  if (!error && response.statusCode == 200) {
+				    // console.log(body); // Show the HTML for the Google homepage. 
+				    $ = cheerio.load(body);
+				    newURLs = getAllHRefs( $, rootHost, url );
+				    console.log( '*********************** NEW URLS to Be Scraped *********************** ');
+				    console.dir( newURLs );
+				    // globalCacheOfURLs = combineObjects(  newURLs );
+				    scripts = getAllScripts( $, scripts );
+				    css = getAllCSS( $, css );
+				    images = getAllImg( $, images );
+				    
+				    // searched this URL so flag it as true in the global cache
+				    globalCacheOfURLs[ url ] = true;
+				    globalCacheOfScrapedURLs [ url ] = true;
 
-		    // console.log(body); // Show the HTML for the Google homepage. 
-		    $ = cheerio.load(body);
-		    newURLs = getAllHRefs( $, rootHost, allURLs);
-		    allURLs = combineObjects( newURLs, allURLs );
-		    scripts = getAllScripts( $, scripts );
-		    css = getAllCSS( $, css );
-		    images = getAllImg( $, images );
-		    
-		    console.dir( newURLs );
-				console.dir( allURLs );
+				    if( ++urlCount === globalCache.length ) {
+				    	callback();
+				    }
+				  }
+				  else {
+				  	console.log( "Error" + error );
+				  	callback( error );
+				  }
+				  
+			  				 
+			    // return !jQuery.isEmptyObject( newURLs ) 
+				});
+			}
+			else{
+				console.log( 'URL: ', url, ' has already been scraped' );
+			}
+		})(url);
+	
+	}
+}
+function repeat( nextURLs ) {
+	scrapeURL( rootHost, nextURLs, css, scripts, images, repeat );
+}
+
+function crawlAndQueue ( rootHost, currentURLs, css, scripts, images, callback ) {
+	// currentURLs should only contain the urls found in this recursion so as not to keep repeating searches
+	var debug = require( 'debug' )('app:crawlAndQueue');
+	scrapeURL( rootHost, currentURLs, css, scripts, images, function( nextURLs ) {
+		  if( globalCache.length === globalCacheOfScrapedURLs.length ) {
+		  	console.log( "Finished!");
+		  	console.log( '*********************** CrawlAndQueue CB - All URLS ***********************');
+				console.dir( globalCacheOfURLs );
+				callback({ "css": css , "scripts": scripts, "images": images } );
 		  }
 		  else {
-		  	console.log( "Error" + error );
+		  	console.log( 'BOOOOOHOOOOO');
+		  	callback( "Error: Cache of Scraped URLS and GlobalCache of All URLS found don't match.");
 		  }
-	    return !jQuery.isEmptyObject( newURLs ) ? crawlAndQueue( rootHost, newURLs, allURLs, css, scripts, images ) :
-	  				 { "urls": allURLs , "css": css , "scripts": scripts, "images": images };
-		});
-	}
+		 //  if( !isEmptyObject( nextURLs ) ) {
+			// 	// scrapeURL( rootHost, nextURLs, css, scripts, images, function( nextURLs ) {
+			// 		console.log( 'In scrapURL callback, NextURLs');
+			// 		console.dir( nextURLs );
+			// }
+			// else {
+			// 	return callback({ "css": css , "scripts": scripts, "images": images } );
+			// }
+	} );
+
+	// scrapeURL( starterURL, function( latestURLs ) {
+	// 	if( !isEmptyObject( latestURLSs ) ) {
+	// 		allURLs = combineObjects( allURLs, latestURLs);
+	// 		for( var url in latestURLS ) {
+	// 			return scrapeURL( url,  callback );
+	// 		}
+	// 	}
+	// 	else {
+	// 		return allURLS;
+	// 	}
+	// });
+	
 }
 function getAllCSS( $, listOfCSS ) {
 	return listOfCSS;
@@ -95,14 +199,12 @@ module.exports = {
 	serveFile: {
 		handler: function( request, reply ) {
 			var filePath = path.join( __dirname , "../.." + request.url.path );
-			console.log( "Static File: " + filePath );
 			return reply.file( filePath );
 		}
 	},
 	searchURL: {
 		handler: function (request, reply ) {
 			
-			console.dir( request.query );
 			console.dir( request.query.scrapeurl );
 			// requestio
 			// .get(request.query.scrapeurl)
@@ -112,15 +214,26 @@ module.exports = {
 			// });
 			// rootHost should just be the host and none of the path... gotta do that...
 			var rootHost = request.query.scrapeurl; // e.g. https://www.gocardless.com
-			var listOfURLs = { rootHost: true };
+			// var listOfURLs = {};
+			globalCacheOfURLs[ rootHost ] = false;
+			globalCache.push( rootHost );
 			var listOfCSS = {};
 			var listOfImg = {};
 			var listOfScripts = {};
 
-			var results = crawlAndQueue( rootHost, listOfURLs, listOfURLs, listOfCSS, listOfScripts, listOfImg ); 
+			crawlAndQueue( rootHost, globalCacheOfURLs, listOfCSS, listOfScripts, listOfImg, function( error, results ) {
+				console.log( " ********************** All URLS SCRAPED **************************");
+				console.log( "Count of URLs found: " + globalCache.length );
+				console.dir( globalCacheOfURLs );
+				// console.dir( results );
+				// return reply(request.query.scrapeurl);
+				if( error ) {
+					console.log( error );
+				}
+				return reply(globalCacheOfURLs);
+			} ); 
 			
-
-			return reply(request.query.scrapeurl);
+			
 		}
 	}
 };
