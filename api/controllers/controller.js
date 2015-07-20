@@ -1,6 +1,5 @@
-var path 	 = require("path");
+var path = require( "path" );
 var requestio  = require('request');
-// var jQuery = require ('jquery');
 var cheerio  = require('cheerio');
 var validator = require('validator');
 
@@ -9,9 +8,36 @@ var globalCacheOfURLs = {},
 		globalListOfScripts = {},
 		globalListOfImages = {},
 		globalListOfVideo = {};
+
+var globalCacheOfScrapedURLs = {};
+
 var globalCache = [];
 var globalRootURL = "";
+var URL = {
+    	HAS_BEEN_SCRAPED : true,
+    	HAS_NOT_BEEN_SCRAPED : false,
+};
 
+if (!String.prototype.endsWith) {
+  String.prototype.endsWith = function(searchString, position) {
+      var subjectString = this.toString();
+      if (position === undefined || position > subjectString.length) {
+        position = subjectString.length;
+      }
+      position -= searchString.length;
+      var lastIndex = subjectString.indexOf(searchString, position);
+      return lastIndex !== -1 && lastIndex === position;
+  };
+}
+function removeTrailingSlash( url ){
+	if( url && url.endsWith( "/" ) ){
+		var searchStr = "/";
+		var position = url.length -= searchStr.length;
+		var lastIndex = url.indexOf("/", position );
+
+		return url.slice(0, lastIndex );
+	}
+}
 function addToCache ( url ) {
 	var debug = require( 'debug' )('app:addToCache');
 
@@ -24,9 +50,8 @@ function addToCache ( url ) {
 		return false;
 	}
 	else{
-		debug( 'Adding to list of URLs to be scraped');
-		globalCacheOfURLs[ url ] = false;
-		globalCache.push( url );
+		console.log( 'Adding to list of URLs to be scraped');
+		cacheURL( url );
 		return true;
 	}
 }
@@ -52,16 +77,18 @@ function getAllVideo ( $ ) {
 function getAllHRefs ( $, currentURL ) {
 	var debug = require( 'debug' )('app:getAllHRefs');
 	var fullpath, href;
+	var foundURLs  = {};
 	var atags = $('a');
+	var found = false;
   $('a').each( function(index, a ) {
   	href = $(a).attr( "href" );
-  	if( href !== undefined ) {
   		
-    	console.log( "HREF: " + href );
-
+  	href = removeTrailingSlash( href );
+  	// console.log( "HREF without trailing slash: " + href );
+  	if( href !== undefined ) {
     	if( href.match( '^http') && validator.isURL( href ) ){
-    		addToCache( href );
-    			
+    		if( addToCache( href ) ) { foundURLs[ fullpath ] = URL.HAS_NOT_BEEN_SCRAPED; }
+    		
     		// EITHER REQUEST THE URL STRAIGHT AWAY HERE USING requestPage( href, callback )
     		// OR WAIT UNTIL getALLHREFs returns to requestPage and then loop through found
     		// hrefs calling requestPage recursively 
@@ -69,31 +96,30 @@ function getAllHRefs ( $, currentURL ) {
     		// 1. Will this recursive call of an asynchronous function with a callback work
     		//     as desired?
     	}
-    	else if( href.match('^#') ){
-    		fullpath = currentURL + href;
-    		console.log( "Full path", fullpath );
-    		if( validator.isURL(fullpath) ) {
-    			console.log( "Valid URL so stick it in the list if unique");
-  				addToCache( fullpath );
-    		}
-    		else {
-    			console.log( 'Invalid URL so skipping');
-    		}
+    	else if( href.match('^#') ){ // inline link e.g. #footer - can ignore these
+    		debug( "Found an inline link which can be ingnored" );
     	}
-    	else	{ // eg href='/****'
+    	else if( href === "" ){
+    		// This href can be ignored as it's the same as the parent url, only with a trailing /
+    		console.log( "Found an empty string for Href so ignore." );
+    	}
+    	else	{ // relative path eg href='/****'
     		// need to add the root hostname to the href
     		fullpath = globalRootURL + href;
     		debug( "Fullpath: " , fullpath );
     		if( validator.isURL(fullpath) ) {
     			debug( "Valid URL so stick it in the list if unique");
-  				addToCache( fullpath );
-    		}
+  				if( addToCache( fullpath ) ) { foundURLs[ fullpath ] = URL.HAS_NOT_BEEN_SCRAPED; }
+  			}
     		else {
     			console.log( 'Invalid URL so skipping');
     		}
     	}
+    	// What about Virtual Paths
+    	// What about Canonical Paths ?
   	}
   });
+	return foundURLs;
 }
 
 function combineObjects ( newURLs ) {
@@ -110,34 +136,47 @@ function isEmptyObject(object) {
 	return false; 
 }
 
-var globalCacheOfScrapedURLs = {};
 
 function requestPage(  url, callback  ) {
-	requestio( url, function (error, response, body) {
+	
+}
+function requestAllURLs( urls, callback ) {
+	var count = 0;
+	for( var i in urls ) {
+		if( count++ === 1 ) return;
+
+		if( urls[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
+			console.log( "NEXT FOUND URL TO SCRAPE" + i ) ;
+			scrapeURL( i, callback );
+		}
+	}
+}
+var globalCount = 0;
+function allURLsScraped() {
+	for( var i in globalCacheOfURLs ) {
+		if( globalCacheOfURLs[ i ] === false ) {
+			console.log( "Found Un-Scraped URL so continue." );
+			return false;
+		}
+	}
+	return true;
+}
+
+function scrapeURL(  startingURL, callback ) {
+	var foundURLs = {};
+	requestio( startingURL, function (error, response, body) {
+		console.log( 'URL to be scraped: ' + startingURL );
 	  if (!error && response.statusCode == 200) {
 	    $ = cheerio.load(body);
-	    getAllHRefs( $, url/*, callback*/ );
+	    foundURLs = getAllHRefs( $, startingURL);
+	    console.dir( foundURLs );
 	    // get static assets and store in global namespace
-    	getAllStaticAssets( $ );
-	    // EITHER : LOOP THROUGH FOUND URLS and recursively call requestPage( href, callback )
-  		// OR STRAIGHT AWAY in getAllHrefs 
-  		// hrefs calling requestPage recursively 
-  		// Questions: 
-  		// 1. Will this recursive call of an asynchronous function with a callback work
-  		//     as desired?
-  		// 2. Is passing callback around a good or bad idea?
-  		/* 
-  		requestAllURLs( newURLs, callback );
-  		// defined as:
+    	getAllStaticAssets( $ );		 
+  		requestAllURLs( foundURLs, callback );
   		
-  		for( var i in newURLs ) {
-				if( ! newURLs[ i ] ) {
-					requestPage( i, callback );
-				}
-  		}
-
-  		*/
-	    if( 1===1 /*if globalCacheOfURLs contains any false links then don't callback yet*/ ) {
+  		// set URL to HAS_BEEN_SCRAPED in cache as it's been scraped/
+  		globalCacheOfURLs[ startingURL ] = URL.HAS_BEEN_SCRAPED;
+	    if( allURLsScraped() /*if globalCacheOfURLs contains any false links then don't callback yet*/ ) {
 	    	callback();
 	    }
 	    
@@ -146,11 +185,6 @@ function requestPage(  url, callback  ) {
 	  	console.error( error );
 	  }
 	});
-}
-
-function scrapeURL(  startingURL, callback ) {
-
-	requestPage( startingURL, callback );
 }
 
 
@@ -216,7 +250,7 @@ function scrapeURL(  startingURL, callback ) {
 // }
 
 function cacheURL( url ) {
-	globalCacheOfURLs[ url ] = false;
+	globalCacheOfURLs[ url ] = URL.HAS_NOT_BEEN_SCRAPED;
 	globalCache.push( url );
 }
 
@@ -239,13 +273,10 @@ module.exports = {
 		handler: function (request, reply ) {
 			// rootHost should just be the host and none of the path... gotta do that...
 			globalRootURL = request.query.scrapeurl; // e.g. https://www.gocardless.com
-			var startingPoint = {};
-			startingPoint[ globalRootURL ] = false;
 			
 			console.log( "Starting URL: ", globalRootURL );
 			cacheURL( globalRootURL );
 
-			// crawlAndQueue( startingPoint, listOfCSS, listOfScripts, listOfImg, function( error, results ) {
 
 			scrapeURL( globalRootURL, function(error) {
 				console.log( " ********************** All URLS SCRAPED **************************");
@@ -254,7 +285,7 @@ module.exports = {
 				if( error ) {
 					console.log( error );
 				}
-				return reply(globalCacheOfURLs);
+				return reply("Found " + globalCache.length  + " URLs" );
 			} ); 
 		}
 	}
