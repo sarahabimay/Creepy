@@ -11,7 +11,7 @@
   	<div>
       <!-- <form> -->
       <form action="/searchurl" method="GET">
-	     <input id="scrapeURL" name="scrapeurl" value="http://www.">
+	     <input id="scrapeURL" name="scrapeurl" required pattern="^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$" placeholder="http://www.">
 	     <button id="scrape" >Get Static Assets</button>
 	   </form>
     </div>

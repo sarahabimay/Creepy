@@ -225,8 +225,7 @@ function scrapeURL(  startingURL, callback ) {
 	    
 	  }
 	  else {
-			console.log( "GET request error for URL: ", startingURL );
-	  	console.error( error );
+	  	callback( error );
 	  }
 	});
 }
@@ -263,6 +262,7 @@ module.exports = {
 	searchURL: {
 		handler: function (request, reply ) {
 			var searchURL = request.query.scrapeurl;
+			
 			// globalRootHost should just be the protocol and hostname and none of the path
 			resetGlobals();
 			globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
@@ -274,8 +274,9 @@ module.exports = {
 				console.log( " ********************** All URLS SCRAPED **************************");
 				console.log( "Count of URLs found: " + globalCache.length );
 				if( error ) {
+					console.log( "GET request error for URL: ", startingURL );
 					console.log( error );
-					reply.redirect( "/" );
+					return reply.redirect( "/" );
 					// make an error alert to put at the top of the page
 				}
 				return reply.view("sitemap", {rootURL: searchURL, urls : globalCacheOfURLs, css: globalListOfCSS, scripts : globalListOfScripts, images : globalListOfImages });
