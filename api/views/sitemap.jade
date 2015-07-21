@@ -1,0 +1,16 @@
+extends ./layouts/skeleton.jade
+include ./mixins/mixins.jade
+
+block content
+	h1 Static Assets Site Map
+	h2 #{rootURL}
+	ul#utilityNav
+		li
+			a(href='/') New Search
+	ul#primaryNav.col4
+		li#home
+			a(href=rootURL) #{rootURL}
+		+assetList( "CSS Files", css )
+		+assetList( 'Script Files', scripts )
+		+assetList( 'Image Files', images )
+		+assetList( 'Anchor Links', urls )
