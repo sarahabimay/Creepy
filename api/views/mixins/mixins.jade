@@ -1,0 +1,8 @@
+mixin assetList( title, list )
+	li
+		a(href='#') #{title}
+		ul
+			each val, index in list 
+				li
+					a(href='#') #{index}
+		
