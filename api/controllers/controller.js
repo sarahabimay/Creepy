@@ -347,6 +347,7 @@ function resetGlobals(){
 	globalListOfImages = {};
 	globalCache = [];
 }
+var startingURL = "";
 module.exports = {
 
 	homeView: {
@@ -365,24 +366,30 @@ module.exports = {
 	searchURL: {
 		handler: function (request, reply ) {
 			var searchURL = makeWellFormedURL( request.query.scrapeurl );
-			console.log( "STARTING A NEW SEARCH");
-			resetGlobals();
-			// globalRootHost should just be the protocol and hostname and none of the path
-			globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
-			
-			console.log( "Starting URL: ", searchURL );
-			cacheURL( searchURL );
+			if( startingURL === searchURL ) {
+				console.log( "Retry of existing search so ignore");
+			}
+			else{
+				startingURL = searchURL;
+				console.log( "STARTING A NEW SEARCH");
+				resetGlobals();
+				// globalRootHost should just be the protocol and hostname and none of the path
+				globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
+				
+				console.log( "Starting URL: ", searchURL );
+				cacheURL( searchURL );
 
-			scrapeURL( searchURL, function(error) {
-				console.log( " ********************** All URLS SCRAPED **************************");
-				console.log( "Count of URLs found: " + globalCache.length );
-				if( error ) {
-					console.log( error );
-					// make an error alert to put at the top of the page
-					return reply.view( "homepage", { alerts: [{isError: true, alert: "Error for URL: " + searchURL }, {isError: true, alert: "Error Message: " + error }] } );
-				}
-				return reply.view("sitemap", {rootURL: searchURL, urls : globalCacheOfURLs, css: globalListOfCSS, scripts : globalListOfScripts, images : globalListOfImages });
-			} ); 
+				scrapeURL( searchURL, function(error) {
+					console.log( " ********************** All URLS SCRAPED **************************");
+					console.log( "Count of URLs found: " + globalCache.length );
+					if( error ) {
+						console.log( error );
+						// make an error alert to put at the top of the page
+						return reply.view( "homepage", { alerts: [{isError: true, alert: "Error for URL: " + searchURL }, {isError: true, alert: "Error Message: " + error }] } );
+					}
+					return reply.view("sitemap", {rootURL: searchURL, urls : globalCacheOfURLs, css: globalListOfCSS, scripts : globalListOfScripts, images : globalListOfImages });
+				} );
+			} 
 		}
 	}
 };
