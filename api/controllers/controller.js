@@ -270,7 +270,11 @@ function getRootURL ( url ) {
 
 function makeWellFormedURL( url ){
 	var debug = require( 'debug' )('app:makeWellFormedURL');
-	if( !url.match( '^https?\/\/' ) ) {
+	debug(url);
+	if( url.match( '^https?' )){
+		debug( "url has http at the beginning");
+	}
+	if( !url.match( '^https?' ) ) {
 		if( !url.match( '^www' ) ) {
 			debug( "http://www." + url );
 			return "http://www." + url;
