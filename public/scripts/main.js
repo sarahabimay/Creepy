@@ -1,5 +1,10 @@
 $(document).ready( function (){
-	
+	$('#scrape').click( function() {
+		var searchURL = $('#scrapeURL').val();
+		console.log( searchURL );
+		$(".waiting").remove();
+		$("#results").append( "<h2 class='waiting'> Server is busy searching " + searchURL + "</h2>");
+	});
 	// send a GET request to my web server
 	/*$('#scrape').click( function() {
 		var resultHTML;
