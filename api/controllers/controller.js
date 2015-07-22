@@ -112,7 +112,7 @@ function removeTrailingSlash ( url ){
 function updateCachedURL ( url, state ) {
 	var debug = require( "debug" )( "app:updateCachedURL" );
 	if( state ) {
-		debug( "URL: ", url, " has new state: ", state );
+		console.log( "URL: ", url, " has new state: ", state );
 	}
 	globalCacheOfURLs[ url ] = state ;
 }
@@ -142,7 +142,7 @@ function addToCache ( url ) {
 	}
 }
 
-function getFullPath( href ){
+function getFullPath( currentLocation, href ){
 	var debug = require( 'debug' )('app:getFullPath');
 	var fullPath = "";
 
@@ -151,16 +151,16 @@ function getFullPath( href ){
 	}
 	else if( href.match("^/" ) ) { // relative path eg href='/****'
 		fullPath = globalRootURL + href;
-		debug( "Found relative path with leading /, make full path: " , fullPath );
+		debug( "Found path with leading /, make full path: " , fullPath );
 		return fullPath;
 	}
-	else{ // if path starts without '/' e.g. services/prototyping
-		fullPath = globalRootURL + "/" + href;
+	else{ // relative path starts without '/' e.g. services/prototyping
+		fullPath = currentLocation + "/" + href;
 		debug( "Found relative path without leading /, make full path: " , fullPath );
 		return fullPath;
 	}
 }
-function addedToCache( href ) {
+function addedToCache( currentLocation, href ) {
 	var debug = require( 'debug' )('app:addedToCache');
 
 	var fullPath = "";
@@ -168,7 +168,7 @@ function addedToCache( href ) {
 	// 1. it is undefined
 	// 2. it is an inline link e.g. #footer - can ignore these
 	// 3. it is an empty string because this is the same as the parent url
-	if( href === undefined || href.match('^#') || href === "" ){
+	if( href === undefined || href.match('^#') || href === "" || href.match( "^mailto") ){
 		debug( "Found an href which can be ingnored" );
 		return false;
 	} 
@@ -178,7 +178,7 @@ function addedToCache( href ) {
 		fullPath = href;
 	}
 	else{ 
-		fullPath = getFullPath( href );
+		fullPath = getFullPath( currentLocation, href );
 	}
 	// validator.isURL only checks if a url is well formed and not whether it is an actual url
 	if( !validator.isURL(fullPath) ) {  
@@ -201,8 +201,8 @@ function getAllHRefs ( $, currentURL ) {
   	debug( href );
   	href = removeTrailingSlash( href );
   	debug( "After removing trailing slash", href );
-		if( addedToCache( href ) ) {
-			fullPath = getFullPath( href );
+		if( addedToCache( currentURL, href ) ) {
+			fullPath = getFullPath( currentURL, href );
 			foundURLs[ fullPath ] = URL.HAS_NOT_BEEN_SCRAPED;
 		}
     	// What about Virtual Paths
@@ -219,7 +219,7 @@ function combineObjects ( newURLs ) {
 }
 
 function isEmptyObject (object) { 
-	for(var i in object) { 
+	for( var i in object ) { 
 		return true; 
 	} 
 	return false; 
@@ -230,8 +230,8 @@ function requestPageCB (  error, response, body, callback  ) {
 }
 function requestAllURLs( urls, callback ) {
 	var debug = require( 'debug' )('app:requestAllURLs');
-	// console.log( "Next group of URL to scrape");
-	// console.dir(urls);
+	debug( "Next group of URL to scrape");
+	debug(urls);
 	for( var i in urls ) {
 		if( globalCacheOfURLs.hasOwnProperty( i ) && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED) {
 			debug( "NEXT URL TO SCRAPE " + i ) ;
@@ -239,17 +239,41 @@ function requestAllURLs( urls, callback ) {
 		}
 	}
 }
-
+function countOfURLs( isScraped ){
+	var count = 0;
+	for( var i in globalCacheOfURLs ) {
+		if( isScraped!==undefined && isScraped ) {
+			if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_BEEN_SCRAPED ) {
+				++count;
+			}
+		}
+		else if( isScraped!==undefined && !isScraped ) {
+			if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
+				++count;
+			}
+		}
+		else {
+			++count;
+		}
+	}
+	return count;
+}
 function allURLsScraped() {
 	var debug = require( 'debug' )('app:allURLsScraped');
+	debug( globalCacheOfURLs );
 	for( var i in globalCacheOfURLs ) {
-		if( globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
-			debug( "Found unscraped URL so return false" );
+		if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
+			console.log( "Found unscraped URL so return false" );
+			console.log( "URL: ", i );
+			console.log( "Count of all URLS: " + countOfURLs( undefined) );
+			console.log( "Count of scraped URLS: " + countOfURLs( true ) );
+			console.log( "Count of unscraped URLS: " + countOfURLs( false ) );
+
 			return false;
 		}
 	}
 	console.log( "All URLS have been scraped." );
-	console.dir( globalCacheOfURLs );
+	debug( globalCacheOfURLs );
 	return true;
 }
 
@@ -259,7 +283,7 @@ function scrapeURL(  startingURL, callback ) {
 	requestio( startingURL, function (error, response, body) {
 
 	  if (!error && response.statusCode == 200) {
-			console.log( 'GOING TO SCRAPE URL: ' + startingURL );
+			debug( 'GOING TO SCRAPE URL: ' + startingURL );
 			// use cheerio to get a jQuery like handle on the body object
 	    $ = cheerio.load(body);
 	    foundURLs = getAllHRefs( $, startingURL);
@@ -280,8 +304,13 @@ function scrapeURL(  startingURL, callback ) {
 	    
 	  }
 	  else {
-	  	debug( "Error so return to callback");
-	  	callback( error );
+	  	console.log( "Error GETting: " + startingURL );
+	  	globalCacheOfURLs[ startingURL ] = undefined;
+	  	if( allURLsScraped() ) {
+	    	console.log( "allURLsScraped returned true so we are done");
+	    	callback();
+	    }
+	  	// callback( error );
 	  }
 	});
 }
@@ -336,7 +365,7 @@ module.exports = {
 	searchURL: {
 		handler: function (request, reply ) {
 			var searchURL = makeWellFormedURL( request.query.scrapeurl );
-			
+			console.log( "STARTING A NEW SEARCH");
 			resetGlobals();
 			// globalRootHost should just be the protocol and hostname and none of the path
 			globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
