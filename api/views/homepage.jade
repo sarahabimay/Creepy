@@ -1,0 +1,15 @@
+extends ./layouts/skeleton.jade
+include ./mixins/mixins.jade
+
+block content
+	.alertsarea
+		include ./includes/alert_header.jade
+	div
+		h1  Please Enter a URL to See a Map of its Static Assets
+	div
+		// <form>
+		p  URL must be in the form: www.hostname.xx[.xx] 
+		form(action='/searchurl', method='GET')
+			input#scrapeURL(name='scrapeurl', required='', pattern='^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$', placeholder='http://www.')
+			button#scrape Get Static Assets
+		#results
