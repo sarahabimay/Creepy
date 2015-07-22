@@ -11,7 +11,8 @@ var globalCacheOfURLs = {},
 
 var globalCacheOfScrapedURLs = {};
 
-var globalCache = [];
+var cacheOfActiveURLs = [],
+		globalCache = [];
 var globalRootURL = "";
 var URL = {
     	HAS_BEEN_SCRAPED : true,
@@ -28,43 +29,6 @@ if (!String.prototype.endsWith) {
       var lastIndex = subjectString.indexOf(searchString, position);
       return lastIndex !== -1 && lastIndex === position;
   };
-}
-
-function removeTrailingSlash ( url ){
-	if( url && url.endsWith( "/" ) ){
-		var searchStr = "/";
-		var position = url.length -= searchStr.length;
-		var lastIndex = url.indexOf("/", position );
-
-		return url.slice(0, lastIndex );
-	}
-	return url;
-}
-function updateCachedURL ( url, state ) {
-	globalCacheOfURLs[ url ] = state ;
-}
-
-function cacheURL ( url ) {
-	updateCachedURL( url, URL.HAS_NOT_BEEN_SCRAPED );
-	globalCache.push( url );
-}
-
-function addToCache ( url ) {
-	var debug = require( 'debug' )('app:addToCache');
-
-	if( url in globalCacheOfURLs ) {
-			debug( 'Already saved that URL. ' );
-			return false;
-	}
-	else if( url.indexOf( globalRootURL ) < 0) {
-		debug( "External URL so ignore" );
-		return false;
-	}
-	else{
-		debug( 'Adding to list of URLs to be scraped');
-		cacheURL( url );
-		return true;
-	}
 }
 
 function getAllStaticAssets ( $ ) {
@@ -135,6 +99,96 @@ function getAllVideo ( $ ) {
 	return globalListOfVideo;
 }
 
+function removeTrailingSlash ( url ){
+	if( url && url.endsWith( "/" ) ){
+		var searchStr = "/";
+		var position = url.length -= searchStr.length;
+		var lastIndex = url.indexOf("/", position );
+
+		return url.slice(0, lastIndex );
+	}
+	return url;
+}
+function updateCachedURL ( url, state ) {
+	var debug = require( "debug" )( "app:updateCachedURL" );
+	if( state ) {
+		console.log( "URL: ", url, " has new state: ", state );
+	}
+	globalCacheOfURLs[ url ] = state ;
+}
+
+function cacheURL ( url ) {
+	var debug = require( "debug" )( "app:cacheURL" );
+	debug( "Add url to cache as NOT SCRAPED ", url );
+	updateCachedURL( url, URL.HAS_NOT_BEEN_SCRAPED );
+	globalCache.push( url );
+}
+
+function addToCache ( url ) {
+	var debug = require( 'debug' )('app:addToCache');
+
+	if( url in globalCacheOfURLs ) {
+			debug( 'Already saved that URL. ' );
+			return false;
+	}
+	else if( url.indexOf( globalRootURL ) < 0) {
+		debug( "External URL so ignore" );
+		return false;
+	}
+	else{
+		debug( 'Adding to list of URLs to be scraped');
+		cacheURL( url );
+		return true;
+	}
+}
+
+function getFullPath( currentLocation, href ){
+	var debug = require( 'debug' )('app:getFullPath');
+	var fullPath = "";
+
+	if( href.match( "^https?" ) ){
+		return href;
+	}
+	else if( href.match("^/" ) ) { // relative path eg href='/****'
+		fullPath = globalRootURL + href;
+		debug( "Found path with leading /, make full path: " , fullPath );
+		return fullPath;
+	}
+	else{ // relative path starts without '/' e.g. services/prototyping
+		fullPath = currentLocation + "/" + href;
+		debug( "Found relative path without leading /, make full path: " , fullPath );
+		return fullPath;
+	}
+}
+function addedToCache( currentLocation, href ) {
+	var debug = require( 'debug' )('app:addedToCache');
+
+	var fullPath = "";
+	// The href will not be added to the cache if:
+	// 1. it is undefined
+	// 2. it is an inline link e.g. #footer - can ignore these
+	// 3. it is an empty string because this is the same as the parent url
+	if( href === undefined || href.match('^#') || href === "" || href.match( "^mailto") ){
+		debug( "Found an href which can be ingnored" );
+		return false;
+	} 
+
+	if( href.match( '^https?') && validator.isURL( href ) ){
+		debug( "href is canonical and well formed.");
+		fullPath = href;
+	}
+	else{ 
+		fullPath = getFullPath( currentLocation, href );
+	}
+	// validator.isURL only checks if a url is well formed and not whether it is an actual url
+	if( !validator.isURL(fullPath) ) {  
+		debug( 'Invalid URL so skipping: ', fullPath );
+		return false;
+	}
+	debug( "Valid URL so stick it in the list if unique");
+	return addToCache( fullPath );
+
+}
 function getAllHRefs ( $, currentURL ) {
 	var debug = require( 'debug' )('app:getAllHRefs');
 	var fullpath, href;
@@ -147,46 +201,12 @@ function getAllHRefs ( $, currentURL ) {
   	debug( href );
   	href = removeTrailingSlash( href );
   	debug( "After removing trailing slash", href );
-  	if( href !== undefined ) {
-    	if( href.match( '^http') && validator.isURL( href ) ){
-    		debug( "href is canonical and well formed.");
-    		if( addToCache( href ) ) { foundURLs[ href ] = URL.HAS_NOT_BEEN_SCRAPED; }
-    	}
-    	else if( href.match('^#') ){ // inline link e.g. #footer - can ignore these
-    		debug( "Found an inline link which can be ingnored" );
-    	}
-    	else if( href === "" ){
-    		// This href can be ignored as it's the same as the parent url, only with a trailing /
-    		debug( "Found an empty string for Href so ignore." );
-    	}
-    	else if( href.match("^/" ) ) { // relative path eg href='/****'
-    		// need to add the root hostname to the href
-    		fullpath = globalRootURL + href;
-    		debug( "Fullpath: " , fullpath );
-    		// validator.isURL only checks if a url is well formed and not whether it is an actual url
-    		if( validator.isURL(fullpath) ) {  
-    			debug( "Valid URL so stick it in the list if unique");
-  				if( addToCache( fullpath ) ) { foundURLs[ fullpath ] = URL.HAS_NOT_BEEN_SCRAPED; }
-  			}
-    		else {
-    			debug( 'Invalid URL so skipping: ', fullpath );
-    		}
-    	}
-    	else{ // if path starts without '/' e.g. services/prototyping
-    		fullpath = globalRootURL + "/" + href;
-    		debug( "Fullpath: " , fullpath );
-    		// validator.isURL only checks if a url is well formed and not whether it is an actual url
-    		if( validator.isURL(fullpath) ) {  
-    			debug( "Valid URL so stick it in the list if unique");
-  				if( addToCache( fullpath ) ) { foundURLs[ fullpath ] = URL.HAS_NOT_BEEN_SCRAPED; }
-  			}
-    		else {
-    			debug( 'Invalid URL so skipping: ', fullpath );
-    		}
-    	}
+		if( addedToCache( currentURL, href ) ) {
+			fullPath = getFullPath( currentURL, href );
+			foundURLs[ fullPath ] = URL.HAS_NOT_BEEN_SCRAPED;
+		}
     	// What about Virtual Paths
     	// What about Canonical Paths ?
-  	}
   });
 	return foundURLs;
 }
@@ -199,7 +219,7 @@ function combineObjects ( newURLs ) {
 }
 
 function isEmptyObject (object) { 
-	for(var i in object) { 
+	for( var i in object ) { 
 		return true; 
 	} 
 	return false; 
@@ -210,6 +230,8 @@ function requestPageCB (  error, response, body, callback  ) {
 }
 function requestAllURLs( urls, callback ) {
 	var debug = require( 'debug' )('app:requestAllURLs');
+	debug( "Next group of URL to scrape");
+	debug(urls);
 	for( var i in urls ) {
 		if( globalCacheOfURLs.hasOwnProperty( i ) && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED) {
 			debug( "NEXT URL TO SCRAPE " + i ) ;
@@ -217,16 +239,41 @@ function requestAllURLs( urls, callback ) {
 		}
 	}
 }
-
+function countOfURLs( isScraped ){
+	var count = 0;
+	for( var i in globalCacheOfURLs ) {
+		if( isScraped!==undefined && isScraped ) {
+			if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_BEEN_SCRAPED ) {
+				++count;
+			}
+		}
+		else if( isScraped!==undefined && !isScraped ) {
+			if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
+				++count;
+			}
+		}
+		else {
+			++count;
+		}
+	}
+	return count;
+}
 function allURLsScraped() {
 	var debug = require( 'debug' )('app:allURLsScraped');
+	debug( globalCacheOfURLs );
 	for( var i in globalCacheOfURLs ) {
-		if( globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
+		if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
+			console.log( "Found unscraped URL so return false" );
+			console.log( "URL: ", i );
+			console.log( "Count of all URLS: " + countOfURLs( undefined) );
+			console.log( "Count of scraped URLS: " + countOfURLs( true ) );
+			console.log( "Count of unscraped URLS: " + countOfURLs( false ) );
+
 			return false;
 		}
 	}
-	debug( "All URLS have been scraped." );
-
+	console.log( "All URLS have been scraped." );
+	debug( globalCacheOfURLs );
 	return true;
 }
 
@@ -251,12 +298,19 @@ function scrapeURL(  startingURL, callback ) {
   		updateCachedURL( startingURL, URL.HAS_BEEN_SCRAPED );
 			// if URLs in globalCacheOfURLs are all URL.HAS_BEEN_SCRAPED then the scrape is done and we can callback
 	    if( allURLsScraped() ) {
+	    	console.log( "allURLsScraped returned true so we are done");
 	    	callback();
 	    }
 	    
 	  }
 	  else {
-	  	callback( error );
+	  	console.log( "Error GETting: " + startingURL );
+	  	globalCacheOfURLs[ startingURL ] = undefined;
+	  	if( allURLsScraped() ) {
+	    	console.log( "allURLsScraped returned true so we are done");
+	    	callback();
+	    }
+	  	// callback( error );
 	  }
 	});
 }
@@ -270,7 +324,9 @@ function getRootURL ( url ) {
 
 function makeWellFormedURL( url ){
 	var debug = require( 'debug' )('app:makeWellFormedURL');
-	if( !url.match( '^https?\/\/' ) ) {
+	debug(url);
+	
+	if( !url.match( '^https?' ) ) {
 		if( !url.match( '^www' ) ) {
 			debug( "http://www." + url );
 			return "http://www." + url;
@@ -309,7 +365,7 @@ module.exports = {
 	searchURL: {
 		handler: function (request, reply ) {
 			var searchURL = makeWellFormedURL( request.query.scrapeurl );
-			
+			console.log( "STARTING A NEW SEARCH");
 			resetGlobals();
 			// globalRootHost should just be the protocol and hostname and none of the path
 			globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
