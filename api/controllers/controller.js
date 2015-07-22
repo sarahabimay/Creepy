@@ -38,6 +38,7 @@ function removeTrailingSlash ( url ){
 
 		return url.slice(0, lastIndex );
 	}
+	return url;
 }
 function updateCachedURL ( url, state ) {
 	globalCacheOfURLs[ url ] = state ;
@@ -47,6 +48,7 @@ function cacheURL ( url ) {
 	updateCachedURL( url, URL.HAS_NOT_BEEN_SCRAPED );
 	globalCache.push( url );
 }
+
 function addToCache ( url ) {
 	var debug = require( 'debug' )('app:addToCache');
 
@@ -70,6 +72,7 @@ function getAllStaticAssets ( $ ) {
 	getAllScripts( $ );
 	getAllImages( $ );
 	getAllVideo( $ );
+	getAllOtherLinks( $ );
 }
 
 function getAllCSS ( $ ) {
@@ -84,6 +87,19 @@ function getAllCSS ( $ ) {
 					globalListOfCSS[ href ] = true;
 					debug( "Include CSS File: ", href );
 				}
+			}
+		}
+	});
+}
+function getAllOtherLinks ( $ ) {
+	var debug = require( 'debug' )('app:getAllOtherLinks');
+	var rel, href;
+	$( "link" ).each( function( index, link ) {
+		href = $( "link" ).attr( "href" );
+		if( href ) {
+			if( !globalListOfCSS.hasOwnProperty( href ) ) {
+				globalListOfCSS[ href ] = true;
+				debug( "Include File: ", href );
 			}
 		}
 	});
@@ -125,13 +141,16 @@ function getAllHRefs ( $, currentURL ) {
 	var foundURLs  = {};
 	var atags = $('a');
 	var found = false;
-  $('a').each( function(index, a ) {
+  atags.each( function(index, a ) {
+  	
   	href = $(a).attr( "href" );
-  		
+  	debug( href );
   	href = removeTrailingSlash( href );
+  	debug( "After removing trailing slash", href );
   	if( href !== undefined ) {
     	if( href.match( '^http') && validator.isURL( href ) ){
-    		if( addToCache( href ) ) { foundURLs[ fullpath ] = URL.HAS_NOT_BEEN_SCRAPED; }
+    		debug( "href is canonical and well formed.");
+    		if( addToCache( href ) ) { foundURLs[ href ] = URL.HAS_NOT_BEEN_SCRAPED; }
     	}
     	else if( href.match('^#') ){ // inline link e.g. #footer - can ignore these
     		debug( "Found an inline link which can be ingnored" );
@@ -140,9 +159,21 @@ function getAllHRefs ( $, currentURL ) {
     		// This href can be ignored as it's the same as the parent url, only with a trailing /
     		debug( "Found an empty string for Href so ignore." );
     	}
-    	else	{ // relative path eg href='/****'
+    	else if( href.match("^/" ) ) { // relative path eg href='/****'
     		// need to add the root hostname to the href
     		fullpath = globalRootURL + href;
+    		debug( "Fullpath: " , fullpath );
+    		// validator.isURL only checks if a url is well formed and not whether it is an actual url
+    		if( validator.isURL(fullpath) ) {  
+    			debug( "Valid URL so stick it in the list if unique");
+  				if( addToCache( fullpath ) ) { foundURLs[ fullpath ] = URL.HAS_NOT_BEEN_SCRAPED; }
+  			}
+    		else {
+    			debug( 'Invalid URL so skipping: ', fullpath );
+    		}
+    	}
+    	else{ // if path starts without '/' e.g. services/prototyping
+    		fullpath = globalRootURL + "/" + href;
     		debug( "Fullpath: " , fullpath );
     		// validator.isURL only checks if a url is well formed and not whether it is an actual url
     		if( validator.isURL(fullpath) ) {  
@@ -237,6 +268,22 @@ function getRootURL ( url ) {
 	return protocol + '//' + host;
 }
 
+function makeWellFormedURL( url ){
+	var debug = require( 'debug' )('app:makeWellFormedURL');
+	if( !url.match( '^https?\/\/' ) ) {
+		if( !url.match( '^www' ) ) {
+			debug( "http://www." + url );
+			return "http://www." + url;
+		}
+		else {
+			debug( "http://" + url );
+			return "http://" + url;
+		}
+	}
+	debug( "Well formed already! " + url );
+	return url;
+}
+
 function resetGlobals(){
 	globalCacheOfURLs = {};
 	globalListOfCSS = {};
@@ -261,10 +308,10 @@ module.exports = {
 	},
 	searchURL: {
 		handler: function (request, reply ) {
-			var searchURL = request.query.scrapeurl;
+			var searchURL = makeWellFormedURL( request.query.scrapeurl );
 			
-			// globalRootHost should just be the protocol and hostname and none of the path
 			resetGlobals();
+			// globalRootHost should just be the protocol and hostname and none of the path
 			globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
 			
 			console.log( "Starting URL: ", searchURL );
@@ -274,10 +321,9 @@ module.exports = {
 				console.log( " ********************** All URLS SCRAPED **************************");
 				console.log( "Count of URLs found: " + globalCache.length );
 				if( error ) {
-					console.log( "GET request error for URL: ", startingURL );
 					console.log( error );
-					return reply.redirect( "/" );
 					// make an error alert to put at the top of the page
+					return reply.view( "homepage", { alerts: [{isError: true, alert: "Error for URL: " + searchURL }, {isError: true, alert: "Error Message: " + error }] } );
 				}
 				return reply.view("sitemap", {rootURL: searchURL, urls : globalCacheOfURLs, css: globalListOfCSS, scripts : globalListOfScripts, images : globalListOfImages });
 			} ); 
