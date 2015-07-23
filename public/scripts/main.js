@@ -11,9 +11,7 @@ $(document).ready( function (){
 		.done(function(data){
 			$("#searchpanel").remove();
 			$('#results').html(data);
-
 		});
 		
 	});
-	
 });
