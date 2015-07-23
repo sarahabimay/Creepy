@@ -382,6 +382,8 @@ module.exports = {
 				scrapeURL( searchURL, function(error) {
 					console.log( " ********************** All URLS SCRAPED **************************");
 					console.log( "Count of URLs found: " + globalCache.length );
+					// clear the global 'startingURL'
+					startingURL = "";
 					if( error ) {
 						console.log( error );
 						// make an error alert to put at the top of the page
