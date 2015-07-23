@@ -13,6 +13,13 @@
 
 ---
 
+## Known Issues - and out of time to dig into further.
+1. Timeout issue with slow internet connections 
+    If a site is large and the internet speed is slow then the client's request may timeout before the server can reply.  If this happens the server will continue working until it replies but the reply will not be handled in the server.
+2. More than one search initiated.  
+  - If more than one search is initiated or the homepage refreshed then the first request will still carry on processing till completion in the server, but the reply will be ignored by the client.
+  - As a stop gap I have disabled the button so a new search cannot be instigated but there's nowt I can do about a page refresh!
+
 ## Design Decisions (so far)
 1. Use Javascript for client-side
 2. Use Node.JS for server side crawling code.
