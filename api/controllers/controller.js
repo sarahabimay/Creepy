@@ -23,13 +23,13 @@ var URL = {
 
 if (!String.prototype.endsWith) {
   String.prototype.endsWith = function(searchString, position) {
-      var subjectString = this.toString();
-      if (position === undefined || position > subjectString.length) {
-        position = subjectString.length;
-      }
-      position -= searchString.length;
-      var lastIndex = subjectString.indexOf(searchString, position);
-      return lastIndex !== -1 && lastIndex === position;
+    var subjectString = this.toString();
+    if (position === undefined || position > subjectString.length) {
+      position = subjectString.length;
+    }
+    position -= searchString.length;
+    var lastIndex = subjectString.indexOf(searchString, position);
+    return lastIndex !== -1 && lastIndex === position;
   };
 }
 
@@ -230,7 +230,7 @@ function isEmptyObject (object) {
 function requestPageCB (  error, response, body, callback  ) {
 	
 }
-function requestAllURLs( urls, callback ) {
+function requestAllURLs ( urls, callback ) {
 	var debug = require( 'debug' )('app:requestAllURLs');
 	debug( "Next group of URL to scrape");
 	debug(urls);
@@ -241,7 +241,7 @@ function requestAllURLs( urls, callback ) {
 		}
 	}
 }
-function countOfURLs( isScraped ){
+function countOfURLs ( isScraped ){
 	var count = 0;
 	for( var i in globalCacheOfURLs ) {
 		if( isScraped!==undefined && isScraped ) {
@@ -260,13 +260,13 @@ function countOfURLs( isScraped ){
 	}
 	return count;
 }
-function cacheDiagnosticLogs() {
+function cacheDiagnosticLogs () {
 	console.log( "Count of all URLS: " + countOfURLs( undefined) );
 	console.log( "Count of scraped URLS: " + countOfURLs( true ) );
 	console.log( "Count of unscraped URLS: " + countOfURLs( false ) );
 }
 
-function allURLsScraped() {
+function allURLsScraped () {
 	var debug = require( 'debug' )('app:allURLsScraped');
 	debug( globalCacheOfURLs );
 	for( var i in globalCacheOfURLs ) {

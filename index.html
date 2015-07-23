@@ -5,16 +5,20 @@
     <title>Static Assets Site Map</title>
   </head>
   <body>
-  	<div>
-  		<h1> Please Enter a URL to See a Map of its Static Assets</h1>
-  	</div> 
-  	<div>
-      <!-- <form> -->
-      <p> URL must be in the form: www.hostname.xx[.xx] </p>
-      <form action="/searchurl" method="GET">
-	     <input id="scrapeURL" name="scrapeurl" required pattern="^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$" placeholder="http://www.">
-	     <button id="scrape" >Get Static Assets</button>
-	   </form>
+    <div id="searchpanel">
+    	<div>
+    		<h1> Please Enter a URL to See a Map of its Static Assets</h1>
+    	</div> 
+    	<div>
+        <!-- <form> -->
+        <p> URL must be in the form: www.hostname.xx[.xx] </p>
+        <form >
+  	     <input id="scrapeURL" name="scrapeurl" required pattern="^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$" placeholder="http://www.">
+  	     <button id="scrape" >Get Static Assets</button>
+  	   </form>
+      </div>
+      <div id="waitingarea">
+      </div>
     </div>
     <div id="results"> 
     </div>

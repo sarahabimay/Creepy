@@ -1,7 +1,5 @@
 var Hapi = require( "hapi" );
 var path 	= require('path');
-// var routes 	= require('./routes/routes.js');
-// var config 	= require('./config.js');
 var port 	= {port: (process.env.port || 3000 ) };
 var controller 	= require("./controllers/controller.js");
 
