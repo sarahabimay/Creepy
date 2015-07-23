@@ -19,6 +19,7 @@
 2. More than one search initiated.  
   - If more than one search is initiated or the homepage refreshed then the first request will still carry on processing till completion in the server, but the reply will be ignored by the client.
   - As a stop gap I have disabled the button so a new search cannot be instigated but there's nowt I can do about a page refresh!
+3. Very ugly UX but hey that's the way the dice fell!
 
 ## Design Decisions (so far)
 1. Use Javascript for client-side
