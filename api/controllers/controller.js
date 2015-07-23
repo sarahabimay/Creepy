@@ -260,24 +260,25 @@ function countOfURLs( isScraped ){
 	}
 	return count;
 }
+function cacheDiagnosticLogs() {
+	console.log( "Count of all URLS: " + countOfURLs( undefined) );
+	console.log( "Count of scraped URLS: " + countOfURLs( true ) );
+	console.log( "Count of unscraped URLS: " + countOfURLs( false ) );
+}
+
 function allURLsScraped() {
 	var debug = require( 'debug' )('app:allURLsScraped');
 	debug( globalCacheOfURLs );
 	for( var i in globalCacheOfURLs ) {
 		if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
 			debug( "Found unscraped URL so return false" );
-			console.log( "URL: ", i );
-			console.log( "Count of all URLS: " + countOfURLs( undefined) );
-			console.log( "Count of scraped URLS: " + countOfURLs( true ) );
-			console.log( "Count of unscraped URLS: " + countOfURLs( false ) );
-
+			debug( "URL: ", i );
+			cacheDiagnosticLogs();
 			return false;
 		}
 	}
 	console.log( "All URLS have been scraped." );
-	console.log( "Count of all URLS: " + countOfURLs( undefined) );
-	console.log( "Count of scraped URLS: " + countOfURLs( true ) );
-	console.log( "Count of unscraped URLS: " + countOfURLs( false ) );
+	cacheDiagnosticLogs();
 	debug( globalCacheOfURLs );
 	return true;
 }
@@ -309,7 +310,7 @@ function scrapeURL(  startingURL, callback ) {
 	    
 	  }
 	  else {
-	  	console.log( "Error GETting: " + startingURL );
+	  	console.log( "Error GET-ting: " + startingURL );
 	  	globalCacheOfURLs[ startingURL ] = undefined;
 	  	if( allURLsScraped() ) {
 	    	console.log( "allURLsScraped returned true so we are done");
@@ -350,7 +351,27 @@ function resetGlobals(){
 	globalListOfScripts = {};
 	globalListOfImages = {};
 	globalCache = [];
+	globalStartSearchURL = "";
+	globalRootURL = "";
 }
+
+function init( searchURL ) {
+	console.log( "STARTING A NEW SEARCH");
+
+	// Reset global cache of urls and global lists of static assets to be empty
+	resetGlobals();
+	
+	// Keep track of the current search url to prevent retries whilst mid scrape.
+	globalStartSearchURL = searchURL;
+
+	// The globalRootHost var should just be the protocol and hostname and none of the path
+	globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
+	
+	// Store the searchURL in the globalCacheOfURLs
+	console.log( "Starting URL: ", searchURL );
+	cacheURL( searchURL );
+}
+
 module.exports = {
 
 	homeView: {
@@ -373,20 +394,17 @@ module.exports = {
 				console.log( "********************RETRY OF EXISTING SEARCH SO IGNORE!********************");
 			}
 			else{
-				globalStartSearchURL = searchURL;
-				console.log( "STARTING A NEW SEARCH");
-				resetGlobals();
-				// globalRootHost should just be the protocol and hostname and none of the path
-				globalRootURL = getRootURL( searchURL ); // e.g. https://www.gocardless.com
+				// NEED A WAY OF KILLING THE PREVIOUS SEARCH!!!! 
+				// UNTIL I CAN DO THIS A NEW SEARCH HAS TO BE PREVENTED !!!!
+				init( searchURL );
 				
-				console.log( "Starting URL: ", searchURL );
-				cacheURL( searchURL );
-
 				scrapeURL( searchURL, function(error) {
 					console.log( " ********************** All URLS SCRAPED **************************");
 					console.log( "Count of URLs found: " + globalCache.length );
+					
 					// clear the global 'globalStartSearchURL'
 					globalStartSearchURL = "";
+
 					if( error ) {
 						console.log( error );
 						// make an error alert to put at the top of the page
