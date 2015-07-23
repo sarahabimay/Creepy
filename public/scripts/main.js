@@ -9,8 +9,6 @@ $(document).ready( function (){
 			console.log( 'data: ' + data );
 		})
 		.done(function(data){
-			console.log( "In done callback. Data: " + data );
-			console.log( "Remove searchpanel: " );
 			$("#searchpanel").remove();
 			$('#results').html(data);
 
