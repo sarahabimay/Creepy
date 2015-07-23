@@ -13,7 +13,9 @@ var globalCacheOfScrapedURLs = {};
 
 var cacheOfActiveURLs = [],
 		globalCache = [];
-var globalRootURL = "";
+var globalRootURL = "",
+	  globalStartSearchURL = "";
+
 var URL = {
     	HAS_BEEN_SCRAPED : true,
     	HAS_NOT_BEEN_SCRAPED : false,
@@ -263,7 +265,7 @@ function allURLsScraped() {
 	debug( globalCacheOfURLs );
 	for( var i in globalCacheOfURLs ) {
 		if( globalCacheOfURLs[ i ] !== undefined && globalCacheOfURLs[ i ] === URL.HAS_NOT_BEEN_SCRAPED ) {
-			console.log( "Found unscraped URL so return false" );
+			debug( "Found unscraped URL so return false" );
 			console.log( "URL: ", i );
 			console.log( "Count of all URLS: " + countOfURLs( undefined) );
 			console.log( "Count of scraped URLS: " + countOfURLs( true ) );
@@ -273,6 +275,9 @@ function allURLsScraped() {
 		}
 	}
 	console.log( "All URLS have been scraped." );
+	console.log( "Count of all URLS: " + countOfURLs( undefined) );
+	console.log( "Count of scraped URLS: " + countOfURLs( true ) );
+	console.log( "Count of unscraped URLS: " + countOfURLs( false ) );
 	debug( globalCacheOfURLs );
 	return true;
 }
@@ -310,7 +315,6 @@ function scrapeURL(  startingURL, callback ) {
 	    	console.log( "allURLsScraped returned true so we are done");
 	    	callback();
 	    }
-	  	// callback( error );
 	  }
 	});
 }
@@ -347,7 +351,6 @@ function resetGlobals(){
 	globalListOfImages = {};
 	globalCache = [];
 }
-var startingURL = "";
 module.exports = {
 
 	homeView: {
@@ -366,11 +369,11 @@ module.exports = {
 	searchURL: {
 		handler: function (request, reply ) {
 			var searchURL = makeWellFormedURL( request.query.scrapeurl );
-			if( startingURL === searchURL ) {
-				console.log( "Retry of existing search so ignore");
+			if( globalStartSearchURL === searchURL ) {
+				console.log( "********************RETRY OF EXISTING SEARCH SO IGNORE!********************");
 			}
 			else{
-				startingURL = searchURL;
+				globalStartSearchURL = searchURL;
 				console.log( "STARTING A NEW SEARCH");
 				resetGlobals();
 				// globalRootHost should just be the protocol and hostname and none of the path
@@ -382,8 +385,8 @@ module.exports = {
 				scrapeURL( searchURL, function(error) {
 					console.log( " ********************** All URLS SCRAPED **************************");
 					console.log( "Count of URLs found: " + globalCache.length );
-					// clear the global 'startingURL'
-					startingURL = "";
+					// clear the global 'globalStartSearchURL'
+					globalStartSearchURL = "";
 					if( error ) {
 						console.log( error );
 						// make an error alert to put at the top of the page
