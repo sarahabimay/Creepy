@@ -19,7 +19,11 @@
 2. More than one search initiated.  
   - If more than one search is initiated or the homepage refreshed then the first request will still carry on processing till completion in the server, but the reply will be ignored by the client.
   - As a stop gap I have disabled the button so a new search cannot be instigated but there's nowt I can do about a page refresh!
-3. Very ugly UX but hey that's the way the dice fell!
+3. Related to 2 is the server can't process multiple concurrent connections from different clients because of the one global state.  
+    - This REALLY bother's me and I'm going to look into a fix as it's screaming out for some sort of pattern!
+4. Global variables - always a no no in JS and causing issue number 3.
+5. Very procedural code methinks.
+6. Very ugly UX but hey that's the way the dice fell!
 
 ## Design Decisions (so far)
 1. Use Javascript for client-side
