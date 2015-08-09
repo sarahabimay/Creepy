@@ -216,32 +216,44 @@ Creeper.prototype.addedToCache = function addedToCache( currentLocation, href ) 
 
 };
 
-Creeper.prototype.countOfURLs = function countOfURLs ( isScraped ){
+Creeper.prototype.totalOfURLFound = function numberOfURLFound () {
 	var self = this;
 	var count = 0;
 	for( var i in self.globalCacheOfURLs ) {
-		if( isScraped!==undefined && isScraped ) {
-			if( self.globalCacheOfURLs[ i ] !== undefined && self.globalCacheOfURLs[ i ] === self.URL_STATE.HAS_BEEN_SCRAPED ) {
-				++count;
-			}
-		}
-		else if( isScraped!==undefined && !isScraped ) {
-			if( self.globalCacheOfURLs[ i ] !== undefined && self.globalCacheOfURLs[ i ] === self.URL_STATE.HAS_NOT_BEEN_SCRAPED ) {
-				++count;
-			}
-		}
-		else {
+		++count;
+	}
+	return count;
+};
+Creeper.prototype.getScrapeStateType = function getScrapeStateType ( type ) {
+	var self = this;
+	return ( type === "fail" )? undefined : type === "scraped";
+};
+
+Creeper.prototype.countURLType = function countURLType ( stateType ) {
+	var self = this;
+	var count = 0;
+	for( var i in self.globalCacheOfURLs ) {
+		if( self.globalCacheOfURLs[ i ] === stateType ) {
 			++count;
 		}
 	}
 	return count;
 };
 
+Creeper.prototype.countOfURLs = function countOfURLs ( type ){
+	var self = this;
+	var count = 0;
+	if( type === "all" ) return self.totalOfURLFound();
+	var stateType = self.getScrapeStateType( type );
+	return self.countURLType( stateType );
+};
+
 Creeper.prototype.cacheDiagnosticLogs = function cacheDiagnosticLogs () {
 	var self = this;
-	console.log( "Count of all URLS: " + self.countOfURLs( undefined) );
-	console.log( "Count of scraped URLS: " + self.countOfURLs( true ) );
-	console.log( "Count of unscraped URLS: " + self.countOfURLs( false ) );
+	console.log( "Count of all URLS: " + self.countOfURLs( "all") );
+	console.log( "Count of scraped URLS: " + self.countOfURLs( 'scraped' ) );
+	console.log( "Count of unscraped URLS: " + self.countOfURLs( 'unscraped' ) );
+	console.log( "Count of URLS which failed to scrape: " + self.countOfURLs( 'fail' ) );
 };
 
 Creeper.prototype.getRootURL = function getRootURL ( url ) {
@@ -251,7 +263,7 @@ Creeper.prototype.getRootURL = function getRootURL ( url ) {
 	return protocol + '//' + host;
 };
 
-Creeper.prototype.makeWellFormedURL = function makeWellFormedURL( url ){
+Creeper.prototype.makeWellFormedURL = function makeWellFormedURL ( url ){
 	var debug = require( 'debug' )('app:makeWellFormedURL');
 	debug(url);
 	
@@ -323,10 +335,10 @@ Creeper.prototype.getAllHRefs = function getAllHRefs ( $, currentURL ) {
 };
 Creeper.prototype.scrapeURL =function scrapeURL(  startingURL ) {
 	var debug = require( 'debug' )('app:scrapeURL');
-	console.log( "In scrapeURL" );
+	debug( "In scrapeURL" );
 	var self = this;
 	var foundURLs = {};
-	requestio( startingURL, function (error, response, body) {
+	requestio( {uri: startingURL, headers: {'User-Agent': 'request'}}, function (error, response, body) {
 
 		if (!error && response.statusCode == 200) {
 			debug( 'GOING TO SCRAPE URL: ' + startingURL );
@@ -337,12 +349,12 @@ Creeper.prototype.scrapeURL =function scrapeURL(  startingURL ) {
 			// get static assets and store in global namespace
 			self.getAllStaticAssets( $ );		
 
-			// spin off $.get (equivalent) asynchronous requests for each of the found URLs.
+			// spin off asynchronous GET requests for each of the found URLs.
 			self.requestAllURLs( foundURLs );
 			
-			// set URL to HAS_BEEN_SCRAPED in cache as it's been scraped
+			// current URL has been scraped so update it's state to HAS_BEEN_SCRAPED in the cache
 			self.updateCachedURL( startingURL, self.URL_STATE.HAS_BEEN_SCRAPED );
-				// if URLs in globalCacheOfURLs are all URL.HAS_BEEN_SCRAPED then the scrape is done and we can callback
+				// if all URLs in globalCacheOfURLs are: URL.HAS_BEEN_SCRAPED, then the scrape is done and we can callback to client
 			if( self.allURLsScraped() ) {
 				console.log( "allURLsScraped returned true so we are done");
 				debug( "Count of URLs found: " + self.globalCache.length );
