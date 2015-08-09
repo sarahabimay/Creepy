@@ -23,12 +23,8 @@ module.exports = {
 				callback : function(error, assets ) {
 					console.log( " ********************** All URLS SCRAPED **************************");
 					
-					// clear the global 'globalStartSearchURL'
-					// globalStartSearchURL = "";
-
 					if( error ) {
-						console.log( error );
-						// make an error alert to put at the top of the page
+						console.error( error );
 						return reply.view( "homepage", { alerts: [{isError: true, alert: "Error for URL: " + searchURL }, {isError: true, alert: "Error : " + error }] } );
 					}
 					if( assets ) {
