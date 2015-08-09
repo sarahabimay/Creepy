@@ -16,7 +16,7 @@
 
 ## Known Issues - and out of time to dig into further.
 1. NO TESTS!!  
-2. ECONNRESET errors with URL: www.gocardless.com - gocardless webserver is closing the 'request' connection. I think the problem is too many requests in a short space of time are being sent and the webserver doesn't like it.
+2. ECONNRESET errors with URL: www.gocardless.com - gocardless webserver is closing the 'request' connection. I think the problem is too many requests in a short space of time are being sent and the webserver doesn't like it. - no fix for this currently but I suspect using a Pool I could slow down the rate of requests. 
 3. Timeout issue with slow internet connections 
     If a site is large and the internet speed is slow then the client's request may timeout before the server can reply.  If this happens the server will continue working until it replies but the reply will not be handled in the server.
 4.  More than one search initiated.  
