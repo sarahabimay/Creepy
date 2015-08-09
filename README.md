@@ -12,20 +12,18 @@
 
 
 ---
-## SOME FIXES TO KNOWN ISSUES - MODULARIZED the crawler which means concurrent searches can be handled.
+## SOME FIXES TO KNOWN ISSUES - modularized the crawler code into a package which means no global variables and concurrent searches can be handled.
 
 ## Known Issues - and out of time to dig into further.
 1. NO TESTS!!  
-2. Timeout issue with slow internet connections 
+2. ECONNRESET errors with URL: www.gocardless.com - gocardless webserver is closing the 'request' connection. I think the problem is too many requests in a short space of time are being sent and the webserver doesn't like it.
+3. Timeout issue with slow internet connections 
     If a site is large and the internet speed is slow then the client's request may timeout before the server can reply.  If this happens the server will continue working until it replies but the reply will not be handled in the server.
-2. More than one search initiated.  
-  - If more than one search is initiated or the homepage refreshed then the first request will still carry on processing till completion in the server, but the reply will be ignored by the client.
-  - As a stop gap I have disabled the button so a new search cannot be instigated but there's nowt I can do about a page refresh!
-3. Related to 2 is the server can't process multiple concurrent connections from different clients because of the one global state.  
-    - This REALLY bother's me and I'm going to look into a fix as it's screaming out for some sort of pattern!
-4. Global variables - always a no no in JS and causing issue number 3.
-5. Very procedural code methinks.
-6. Very ugly UX but hey that's the way the dice fell!
+4.  More than one search initiated.  
+  - If a scrape is initiated and then the homepage refreshed and another scrape initiated then the first request will still carry on processing till completion in the server, but the reply will be ignored by the client.  Really when the page refreshes a 'KILL Request' should be sent for any open connections.
+  - If a scrape is initiated and then another initated then the server will process both but only the last scrape will be displayed. - a hacky fix is: I have disabled the scrape button so a new search cannot be instigated.
+  
+5. Very ugly UX but hey that's the way the dice fell!
 
 ## Design Decisions (so far)
 1. Use Javascript for client-side
