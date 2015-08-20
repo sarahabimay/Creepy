@@ -1,7 +1,7 @@
 var requestio  = require('request');
 var cheerio  = require('cheerio');
 var validator = require('validator');
-var url = require( 'url' );
+var urlPath = require( 'url' );
 
 if (!String.prototype.endsWith) {
 	String.prototype.endsWith = function(searchString, position) {
@@ -153,6 +153,9 @@ Creeper.prototype.cacheURL = function cacheURL ( url ) {
 Creeper.prototype.addToCache = function addToCache ( url ) {
 	var debug = require( 'debug' )('app:addToCache');
 	var self = this;
+	debug( "Search for external domain. Root URL: ", self.globalRootURL );
+	debug( "Found URL: ", url );
+	// debug( ( url.indexOf( self.globalRootURL ) < 0) ? "External URL" : "Internal URL");
 	if( url in self.globalCacheOfURLs ) {
 			debug( 'Already saved that URL. ' );
 			return false;
@@ -177,12 +180,19 @@ Creeper.prototype.getFullPath = function getFullPath( currentLocation, href ){
 		return href;
 	}
 	else if( href.match("^/" ) ) { // root-relative path eg href='/****'
-		fullPath = url.resolve( self.globalRootURL, href );
+		fullPath = urlPath.resolve( self.globalRootURL, href );
 		debug( "Root-relative path resolved to Fullpath is: ", fullPath );
 		return fullPath;
 	}
 	else{ // relative path starts without '/' e.g. services/prototyping
-		fullPath = url.resolve( currentLocation, href );
+		// a bit of a hack to fit the condition when currentLocation is like: http://blah.blah/blah/blah.html
+		if( !currentLocation.match(".html$")){
+			debug( "CurrentLocation doesn't have .html at the end" );
+			currentLocation += '/';
+		}
+		fullPath = urlPath.resolve( currentLocation, href );
+		debug( "Current Location: ", currentLocation );
+		debug( "URL: ", href );
 		debug( "Relative path resolved to Fullpath is: ", fullPath );
 		return fullPath;
 	}
