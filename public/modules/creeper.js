@@ -1,6 +1,7 @@
 var requestio  = require('request');
 var cheerio  = require('cheerio');
 var validator = require('validator');
+var url = require( 'url' );
 
 if (!String.prototype.endsWith) {
 	String.prototype.endsWith = function(searchString, position) {
@@ -175,14 +176,14 @@ Creeper.prototype.getFullPath = function getFullPath( currentLocation, href ){
 	if( href.match( "^https?" ) ){
 		return href;
 	}
-	else if( href.match("^/" ) ) { // relative path eg href='/****'
-		fullPath = self.globalRootURL + href;
-		debug( "Found path with leading /, make full path: " , fullPath );
+	else if( href.match("^/" ) ) { // root-relative path eg href='/****'
+		fullPath = url.resolve( self.globalRootURL, href );
+		debug( "Root-relative path resolved to Fullpath is: ", fullPath );
 		return fullPath;
 	}
 	else{ // relative path starts without '/' e.g. services/prototyping
-		fullPath = currentLocation + "/" + href;
-		debug( "Found relative path without leading /, make full path: " , fullPath );
+		fullPath = url.resolve( currentLocation, href );
+		debug( "Relative path resolved to Fullpath is: ", fullPath );
 		return fullPath;
 	}
 };
@@ -194,11 +195,13 @@ Creeper.prototype.addedToCache = function addedToCache( currentLocation, href ) 
 	// 1. it is undefined
 	// 2. it is an inline link e.g. #footer - can ignore these
 	// 3. it is an empty string because this is the same as the parent url
+	// 4. it is a duplicate of an already cached url
+	// 5. it is a url for an different domain to the one we initiated the scrape with.
 	if( href === undefined || href.match('^#') || href === "" || href.match( "^mailto") ){
 		debug( "Found an href which can be ingnored" );
 		return false;
 	} 
-
+	// validator.isURL only checks if a url is well formed and not whether it is an actual url
 	if( href.match( '^https?') && validator.isURL( href ) ){
 		debug( "href is canonical and well formed.");
 		fullPath = href;
@@ -206,7 +209,6 @@ Creeper.prototype.addedToCache = function addedToCache( currentLocation, href ) 
 	else{ 
 		fullPath = self.getFullPath( currentLocation, href );
 	}
-	// validator.isURL only checks if a url is well formed and not whether it is an actual url
 	if( !validator.isURL(fullPath) ) {  
 		debug( 'Invalid URL so skipping: ', fullPath );
 		return false;
