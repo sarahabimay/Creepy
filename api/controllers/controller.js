@@ -34,7 +34,7 @@ module.exports = {
 				}
 			});
 
-			creep.startURL( searchURL );
+			creep.startSearchingURL( searchURL );
 
 		}
 	}
