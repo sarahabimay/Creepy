@@ -20,7 +20,7 @@ function Creeper (options) {
 	self.init(options);
 }
 
-Creeper.prototype.init = function init (options) {
+Creeper.prototype.init = function (options) {
 	var self = this;
 	self.globalCallback = options.callback;
 	self.globalCacheOfURLs = {};
@@ -44,7 +44,13 @@ Creeper.prototype.init = function init (options) {
 
 // HELPER FUNCTIONS //
 
-Creeper.prototype.getAllStaticAssets = function getAllStaticAssets ( $ ) {
+Creeper.prototype.updateCacheWithStartingURL = function ( startingSearchURL ){
+	var self = this
+	self.globalStartSearchURL = startingSearchURL;
+	self.globalRootURL = self.getRootURL( startingSearchURL ); // e.g. https://www.gocardless.com
+	self.cacheURL( startingSearchURL );
+};
+Creeper.prototype.cacheAllStaticAssets = function ( $ ) {
 	var self = this;
 	self.getAllCSS( $ );
 	self.getAllScripts( $ );
@@ -53,7 +59,7 @@ Creeper.prototype.getAllStaticAssets = function getAllStaticAssets ( $ ) {
 	self.getAllOtherLinks( $ );
 };
 
-Creeper.prototype.getAllCSS = function getAllCSS ( $ ) {
+Creeper.prototype.getAllCSS = function ( $ ) {
 	var debug = require( 'debug' )('app:getAllCSS');
 	var self = this;
 	var rel, href;
@@ -71,7 +77,7 @@ Creeper.prototype.getAllCSS = function getAllCSS ( $ ) {
 	});
 };
 
-Creeper.prototype.getAllOtherLinks = function getAllOtherLinks ( $ ) {
+Creeper.prototype.getAllOtherLinks = function ( $ ) {
 	var debug = require( 'debug' )('app:getAllOtherLinks');
 	var self = this;
 	var rel, href;
@@ -86,7 +92,7 @@ Creeper.prototype.getAllOtherLinks = function getAllOtherLinks ( $ ) {
 	});
 };
 
-Creeper.prototype.getAllScripts = function getAllScripts ( $ ) {
+Creeper.prototype.getAllScripts = function ( $ ) {
 	var debug = require( 'debug' )('app:getAllScripts');
 	var self = this;
 	var script, src;
@@ -101,7 +107,7 @@ Creeper.prototype.getAllScripts = function getAllScripts ( $ ) {
 	});
 };
 
-Creeper.prototype.getAllImages = function getAllImages ( $ ) {
+Creeper.prototype.getAllImages = function ( $ ) {
 	var debug = require( 'debug' )('app:getAllImages');
 	var self = this;
 	var img, src;
@@ -116,12 +122,12 @@ Creeper.prototype.getAllImages = function getAllImages ( $ ) {
 	});
 };
 
-Creeper.prototype.getAllVideo = function getAllVideo ( $ ) {
+Creeper.prototype.getAllVideo = function ( $ ) {
 	var self = this;
 	return self.globalListOfVideo;
 };
 
-Creeper.prototype.removeTrailingSlash = function removeTrailingSlash ( url ){
+Creeper.prototype.removeTrailingSlash = function ( url ){
 	var searchStr, position, lastIndex;
 	if( url && url.endsWith( "/" ) ){
 		searchStr = "/";
@@ -133,7 +139,7 @@ Creeper.prototype.removeTrailingSlash = function removeTrailingSlash ( url ){
 	return url;
 };
 
-Creeper.prototype.updateCachedURL = function updateCachedURL ( url, state ) {
+Creeper.prototype.updateStateOfCachedURL = function ( url, state ) {
 	var debug = require( "debug" )( "app:updateCachedURL" );
 	var self = this;
 	if( state ) {
@@ -146,11 +152,11 @@ Creeper.prototype.cacheURL = function cacheURL ( url ) {
 	var debug = require( "debug" )( "app:cacheURL" );
 	var self = this;
 	debug( "Add url to cache as NOT SCRAPED ", url );
-	self.updateCachedURL( url, self.URL_STATE.HAS_NOT_BEEN_SCRAPED );
+	self.updateStateOfCachedURL( url, self.URL_STATE.HAS_NOT_BEEN_SCRAPED );
 	self.globalCache.push( url );
 };
 
-Creeper.prototype.addToCache = function addToCache ( url ) {
+Creeper.prototype.addToCache = function ( url ) {
 	var debug = require( 'debug' )('app:addToCache');
 	var self = this;
 	debug( "Search for external domain. Root URL: ", self.globalRootURL );
@@ -171,7 +177,7 @@ Creeper.prototype.addToCache = function addToCache ( url ) {
 	}
 };
 
-Creeper.prototype.getFullPath = function getFullPath( currentLocation, href ){
+Creeper.prototype.getFullPath = function( currentLocation, href ){
 	var debug = require( 'debug' )('app:getFullPath');
 	var self = this;
 	var fullPath = "";
@@ -197,7 +203,7 @@ Creeper.prototype.getFullPath = function getFullPath( currentLocation, href ){
 		return fullPath;
 	}
 };
-Creeper.prototype.addedToCache = function addedToCache( currentLocation, href ) {
+Creeper.prototype.addedToCache = function( currentLocation, href ) {
 	var debug = require( 'debug' )('app:addedToCache');
 	var self = this;
 	var fullPath = "";
@@ -228,7 +234,7 @@ Creeper.prototype.addedToCache = function addedToCache( currentLocation, href ) 
 
 };
 
-Creeper.prototype.totalOfURLFound = function numberOfURLFound () {
+Creeper.prototype.totalOfURLFound = function () {
 	var self = this;
 	var count = 0;
 	for( var i in self.globalCacheOfURLs ) {
@@ -236,7 +242,7 @@ Creeper.prototype.totalOfURLFound = function numberOfURLFound () {
 	}
 	return count;
 };
-Creeper.prototype.getScrapeStateType = function getScrapeStateType ( type ) {
+Creeper.prototype.getScrapeStateType = function ( type ) {
 	var self = this;
 	return ( type === "fail" )? undefined : type === "scraped";
 };
@@ -252,7 +258,7 @@ Creeper.prototype.countURLType = function countURLType ( stateType ) {
 	return count;
 };
 
-Creeper.prototype.countOfURLs = function countOfURLs ( type ){
+Creeper.prototype.countOfURLs = function ( type ){
 	var self = this;
 	var count = 0;
 	if( type === "all" ) return self.totalOfURLFound();
@@ -260,7 +266,7 @@ Creeper.prototype.countOfURLs = function countOfURLs ( type ){
 	return self.countURLType( stateType );
 };
 
-Creeper.prototype.cacheDiagnosticLogs = function cacheDiagnosticLogs () {
+Creeper.prototype.cacheDiagnosticLogs = function () {
 	var self = this;
 	console.log( "Count of all URLS: " + self.countOfURLs( "all") );
 	console.log( "Count of scraped URLS: " + self.countOfURLs( 'scraped' ) );
@@ -268,14 +274,14 @@ Creeper.prototype.cacheDiagnosticLogs = function cacheDiagnosticLogs () {
 	console.log( "Count of URLS which failed to scrape: " + self.countOfURLs( 'fail' ) );
 };
 
-Creeper.prototype.getRootURL = function getRootURL ( url ) {
+Creeper.prototype.getRootURL = function ( url ) {
 	var pathArray = url.split( '/' );
 	var protocol = pathArray[0];
 	var host = pathArray[2];
 	return protocol + '//' + host;
 };
 
-Creeper.prototype.makeWellFormedURL = function makeWellFormedURL ( url ){
+Creeper.prototype.makeWellFormedURL = function ( url ){
 	var debug = require( 'debug' )('app:makeWellFormedURL');
 	debug(url);
 	
@@ -293,7 +299,7 @@ Creeper.prototype.makeWellFormedURL = function makeWellFormedURL ( url ){
 	return url;
 };
 
-Creeper.prototype.allURLsScraped = function allURLsScraped () {
+Creeper.prototype.allURLsHaveBeenScraped = function () {
 	var debug = require( 'debug' )('app:allURLsScraped');
 	var self = this;
 	debug( self.globalCacheOfURLs );
@@ -311,7 +317,7 @@ Creeper.prototype.allURLsScraped = function allURLsScraped () {
 	return true;
 };
 
-Creeper.prototype.requestAllURLs = function requestAllURLs ( urls ) {
+Creeper.prototype.requestAllURLsFor = function ( urls ) {
 	var debug = require( 'debug' )('app:requestAllURLs');
 	var self = this;
 	debug( "Next group of URL to scrape");
@@ -319,11 +325,11 @@ Creeper.prototype.requestAllURLs = function requestAllURLs ( urls ) {
 	for( var i in urls ) {
 		if( self.globalCacheOfURLs.hasOwnProperty( i ) && self.globalCacheOfURLs[ i ] === self.URL_STATE.HAS_NOT_BEEN_SCRAPED) {
 			debug( "NEXT URL TO SCRAPE " + i ) ;
-			self.scrapeURL( i );
+			self.startScrapingURL( i );
 		}
 	}
 };
-Creeper.prototype.getAllHRefs = function getAllHRefs ( $, currentURL ) {
+Creeper.prototype.extractURLsFrom = function ( $, currentURL ) {
 	var debug = require( 'debug' )('app:getAllHRefs');
 	var self = this;
 	var fullpath, href;
@@ -340,53 +346,52 @@ Creeper.prototype.getAllHRefs = function getAllHRefs ( $, currentURL ) {
 			fullPath = self.getFullPath( currentURL, href );
 			foundURLs[ fullPath ] = self.URL_STATE.HAS_NOT_BEEN_SCRAPED;
 		}
-		// What about Virtual Paths
-		// What about Canonical Paths ?
 	});
 	return foundURLs;
 };
-Creeper.prototype.scrapeURL =function scrapeURL(  startingURL ) {
+
+Creeper.prototype.responseSuccessful = function ( error, response ) {
+	return !error && response.statusCode == 200;
+};
+
+Creeper.prototype.completeTheScrape = function(){
+	var debug = require( "debug") ("app:completTheScrape");
+	var self = this;
+	console.log( "allURLsHaveBeenScraped returned true so we are done");
+	self.globalCallback( null, { urls : self.globalCacheOfURLs, css : self.globalListOfCSS, scripts : self.globalListOfScripts, images : self.globalListOfImages });
+};
+
+Creeper.prototype.processResponseError = function ( searchURL, error ){
+	console.log( "Error GET-ting: " + searchURL );
+	console.error( error );
+	var self = this;
+	self.globalCacheOfURLs[ startingURL ] = undefined;
+	if( self.allURLsHaveBeenScraped() ) self.completeTheScrape();
+};
+
+Creeper.prototype.processSuccessfulResponse = function ( searchURL, body ) {
+	var debug = require( 'debug' )('app:processSuccessfulResponse');
+	var self = this;
+	var parsedBody = cheerio.load( body );
+	debug( 'GOING TO SCRAPE URL: ' + searchURL );		
+	self.requestAllURLsFor( self.extractURLsFrom( parsedBody, searchURL ) );
+	self.cacheAllStaticAssets( parsedBody );		
+	self.updateStateOfCachedURL( searchURL, self.URL_STATE.HAS_BEEN_SCRAPED );
+
+	if( self.allURLsHaveBeenScraped() ) self.completeTheScrape();
+};
+
+Creeper.prototype.startScrapingURL = function ( startingURL ) {
 	var debug = require( 'debug' )('app:scrapeURL');
-	debug( "In scrapeURL" );
 	var self = this;
 	var foundURLs = {};
-	requestio( {uri: startingURL, headers: {'User-Agent': 'request'}}, function (error, response, body) {
-
-		if (!error && response.statusCode == 200) {
-			debug( 'GOING TO SCRAPE URL: ' + startingURL );
-			// use cheerio to get a jQuery like handle on the body object
-			$ = cheerio.load(body);
-			foundURLs = self.getAllHRefs( $, startingURL);
-
-			// get static assets and store in global namespace
-			self.getAllStaticAssets( $ );		
-
-			// spin off asynchronous GET requests for each of the found URLs.
-			self.requestAllURLs( foundURLs );
-			
-			// current URL has been scraped so update it's state to HAS_BEEN_SCRAPED in the cache
-			self.updateCachedURL( startingURL, self.URL_STATE.HAS_BEEN_SCRAPED );
-				// if all URLs in globalCacheOfURLs are: URL.HAS_BEEN_SCRAPED, then the scrape is done and we can callback to client
-			if( self.allURLsScraped() ) {
-				console.log( "allURLsScraped returned true so we are done");
-				debug( "Count of URLs found: " + self.globalCache.length );
-
-				self.globalCallback(null, { urls : self.globalCacheOfURLs, css : self.globalListOfCSS, scripts : self.globalListOfScripts, images : self.globalListOfImages });
-			}
-		}
-		else {
-		console.log( "Error GET-ting: " + startingURL );
-		console.error( error );
-		self.globalCacheOfURLs[ startingURL ] = undefined;
-		if( self.allURLsScraped() ) {
-			console.log( "allURLsScraped returned true so we are done");
-			self.globalCallback( null, { urls : self.globalCacheOfURLs, css : self.globalListOfCSS, scripts : self.globalListOfScripts, images : self.globalListOfImages });
-		}
-		}
+	debug( "In scrapeURL" );
+	requestio( { uri: startingURL, headers: { 'User-Agent': 'request' } }, function ( error, response, body ) {
+		self.responseSuccessful( error, response ) ? self.processSuccessfulResponse( startingURL, body ) : self.processResponseError();
 	});
 };
 
-Creeper.prototype.startURL = function startURL( url ) {
+Creeper.prototype.startSearchingURL = function( url ) {
 	var self = this;
 	var searchURL = self.makeWellFormedURL( url );
 
@@ -397,17 +402,10 @@ Creeper.prototype.startURL = function startURL( url ) {
 		// NEED A WAY OF KILLING THE PREVIOUS SEARCH!!!! 
 		// UNTIL I CAN DO THIS A NEW SEARCH HAS TO BE PREVENTED !!!!
 		console.log( "STARTING A NEW SEARCH");
-
-		// // Keep track of the current search url to prevent retries whilst mid scrape.
-		self.globalStartSearchURL = searchURL;
-
-		// // The globalRootHost var should just be the protocol and hostname and none of the path
-		self.globalRootURL = self.getRootURL( searchURL ); // e.g. https://www.gocardless.com
+		self.updateCacheWithStartingURL( searchURL );
 		
-		// Store the searchURL in the globalCacheOfURLs
-		console.log( "Starting URL: ", searchURL );
-		self.cacheURL( searchURL );
-		self.scrapeURL( searchURL );
+		console.log( "Start Scraping the URL: ", searchURL );
+		self.startScrapingURL( searchURL );
 	}
 };
 module.exports = Creeper;
